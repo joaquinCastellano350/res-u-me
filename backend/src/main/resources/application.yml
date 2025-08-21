@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: res-u-me
+
+  jpa:
+    open-in-view: false
+
+logging:
+  level:
+    root: INFO
+server:
+  port: 8080
