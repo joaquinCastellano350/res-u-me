@@ -13,13 +13,38 @@ spring:
 
       dialect: org.hibernate.dialect.PostgreSQLDialect
     show_sql: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+upload:
+  allowed-mime: application/pdf
+  max-bytes: 10485760
+storage:
+  provider: s3
+  s3:
+    endpoint: http://localhost:9000
+    region: us-east-1
+    bucket: res-u-me
+    access-key: minio_resume
+    secret-key: resume123
+    path-style: true
 
 security:
   jwt:
     secret: ${JWT_SECRET:ChangeThisToALongRandomSecretAtLeast32Chars}
     expiration: ${JWT_EXP_SECONDS:3600}
 
+server:
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
+
 logging:
   level:
-    org.hibernate.SQL: info
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.security: info
