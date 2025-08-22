@@ -5,7 +5,7 @@ spring:
     password: ${DB_PASSWORD:admin123}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         jdbc:
@@ -14,6 +14,10 @@ spring:
       dialect: org.hibernate.dialect.PostgreSQLDialect
     show_sql: true
 
+security:
+  jwt:
+    secret: ${JWT_SECRET:ChangeThisToALongRandomSecretAtLeast32Chars}
+    expiration: ${JWT_EXP_SECONDS:3600}
 
 logging:
   level:
