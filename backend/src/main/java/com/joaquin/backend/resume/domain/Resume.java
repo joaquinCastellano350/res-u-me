@@ -1,8 +1,10 @@
-package com.joaquin.backend.resume;
+package com.joaquin.backend.resume.domain;
 
 import jakarta.persistence.*;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -30,6 +32,30 @@ public class Resume {
 
     @Column(name = "uploaded_at", nullable = false)
     private Instant uploadedAt;
+
+    @Column(name = "published_at", nullable = true)
+    private Instant publishedAt;
+
+    @Column(name = "visibility", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private Visibility visibility = Visibility.PRIVATE;
+
+    @Column(name = "share_token_hash")
+    private String shareTokenHash;
+
+    @Column(name = "share_created_at")
+    private Instant shareCreatedAt;
+
+    @Column(name = "share_expirates_at")
+    private Instant shareExpiratesAt;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "resume_tags",
+            joinColumns = @JoinColumn(name = "resume_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<Tag> tags = new HashSet<>();
+
 
     @PrePersist
     public void prePersist() {
@@ -95,5 +121,53 @@ public class Resume {
 
     public void setUploadedAt(Instant uploadedAt) {
         this.uploadedAt = uploadedAt;
+    }
+
+    public Instant getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void setPublishedAt(Instant publishedAt) {
+        this.publishedAt = publishedAt;
+    }
+
+    public Set<Tag> getTags() {
+        return tags;
+    }
+
+    public void setTags(Set<Tag> tags) {
+        this.tags = tags;
+    }
+
+    public Visibility getVisibility() {
+        return visibility;
+    }
+
+    public void setVisibility(Visibility visibility) {
+        this.visibility = visibility;
+    }
+
+    public String getShareTokenHash() {
+        return shareTokenHash;
+    }
+
+    public void setShareTokenHash(String shareTokenHash) {
+        this.shareTokenHash = shareTokenHash;
+    }
+
+    public Instant getShareCreatedAt() {
+        return shareCreatedAt;
+    }
+
+    public void setShareCreatedAt(Instant shareCreatedAt) {
+        this.shareCreatedAt = shareCreatedAt;
+    }
+
+    public Instant getShareExpiratesAt() {
+        return shareExpiratesAt;
+    }
+
+    public void setShareExpiratesAt(Instant shareExpiratesAt) {
+        this.shareExpiratesAt = shareExpiratesAt;
     }
 }

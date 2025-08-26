@@ -1,9 +1,15 @@
-package com.joaquin.backend.resume;
+package com.joaquin.backend.resume.service;
 
+import com.joaquin.backend.resume.domain.Resume;
+import com.joaquin.backend.resume.domain.Visibility;
 import com.joaquin.backend.resume.dto.PageResponse;
 import com.joaquin.backend.resume.dto.ResumeResponse;
+import com.joaquin.backend.resume.dto.ShareResponse;
+import com.joaquin.backend.resume.repository.ResumeRepository;
 import com.joaquin.backend.security.AuthUser;
+import com.joaquin.backend.security.ShareTokens;
 import com.joaquin.backend.storage.StorageService;
+import jakarta.annotation.Nullable;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -13,8 +19,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -24,13 +32,15 @@ public class ResumeService {
     private final StorageService storageService;
     private final Set<String> allowedMime;
     private final long maxBytes;
+    private final long shareExpTime;
 
     public ResumeService(ResumeRepository resumeRepository, StorageService storageService,
-                         @Value("${upload.allowed-mime}") String allowedMime, @Value("${upload.max-bytes}")long maxBytes) {
+                         @Value("${upload.allowed-mime}") String allowedMime, @Value("${upload.max-bytes}")long maxBytes, @Value("${upload.share.expiration-time}") long shareExpTime) {
         this.resumeRepository = resumeRepository;
         this.storageService = storageService;
         this.allowedMime = Arrays.stream(allowedMime.split(",")).map(String::trim).collect(Collectors.toSet());
         this.maxBytes = maxBytes;
+        this.shareExpTime = shareExpTime;
     }
 
     @Transactional
@@ -86,6 +96,8 @@ public class ResumeService {
     }
 
     public ResumeResponse get(UUID id) {
+
+
         UUID userId = AuthUser.id();
         Resume e = resumeRepository.findByUserIdAndId(userId, id)
                 .orElseThrow(() -> new NoSuchElementException("File not found"));
@@ -93,11 +105,40 @@ public class ResumeService {
         return toDto(e);
     }
 
-    public Resource getFile(UUID id){
-        UUID userId = AuthUser.id();
-        Resume e = resumeRepository.findByUserIdAndId(userId, id).orElseThrow(() -> new NoSuchElementException("File not found"));
-        return storageService.get(e.getStorageKey());
+    public Resource getFile(UUID id, @Nullable String shareKey){
+
+        var r = resumeRepository.findById(id).orElseThrow(() -> new NoSuchElementException("File not found"));
+
+        if (shareKey == null || shareKey.isBlank()) {
+            UUID userId = AuthUser.id();
+            Resume e = resumeRepository.findByUserIdAndId(userId, id).orElseThrow(() -> new NoSuchElementException("File not found"));
+            return storageService.get(e.getStorageKey());
+        }
+        if (r.getVisibility() == Visibility.PUBLIC) {
+            return storageService.get(r.getStorageKey());
+        }
+        if (r.getVisibility() == Visibility.UNLISTED && ShareTokens.slowEquals(r.getShareTokenHash(), shareKey)){
+            return storageService.get(r.getStorageKey());
+        }
+        throw new NoSuchElementException("File not found");
     }
+
+
+    @Transactional
+    public ShareResponse generateOrRotateShare(UUID id) {
+        UUID userId = AuthUser.id();
+        var r = resumeRepository.findByUserIdAndId(userId, id)
+                .orElseThrow(() -> new NoSuchElementException("File not found"));
+        if (r.getVisibility() == Visibility.PRIVATE) {
+            throw new UnsupportedOperationException("Private files can't be shared");
+        }
+        var token = ShareTokens.generateToken();
+        r.setShareTokenHash(ShareTokens.sha256(token));
+        r.setShareCreatedAt(Instant.now());
+        r.setShareExpiratesAt(Instant.now().plusSeconds(shareExpTime));
+        return new ShareResponse(token, Instant.now().plusSeconds(shareExpTime));
+    }
+
 
 
     @Transactional

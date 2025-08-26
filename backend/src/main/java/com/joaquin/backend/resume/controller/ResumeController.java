@@ -1,5 +1,7 @@
-package com.joaquin.backend.resume;
+package com.joaquin.backend.resume.controller;
 
+import com.joaquin.backend.resume.dto.ShareResponse;
+import com.joaquin.backend.resume.service.ResumeService;
 import com.joaquin.backend.resume.dto.PageResponse;
 import com.joaquin.backend.resume.dto.ResumeResponse;
 
@@ -15,13 +17,15 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/resumes")
 public class ResumeController {
-    private final  ResumeService resumeService;
+    private final ResumeService resumeService;
     public ResumeController(ResumeService resumeService) {
         this.resumeService = resumeService;
     }
@@ -52,10 +56,23 @@ public class ResumeController {
     }
 
     @GetMapping("/{id}/file")
-    public ResponseEntity<Resource> getFile(@PathVariable UUID id){
-        ResumeResponse md =  resumeService.get(id);
-        Resource file = resumeService.getFile(id);
+    public ResponseEntity<Resource> getFile(@PathVariable UUID id,
+                                            @RequestParam(required = false) String shareToken){
 
+        Resource file = resumeService.getFile(id , shareToken);
+        ResumeResponse md = null;
+        try {
+            md = resumeService.get(id);
+        }catch(Exception ignored) {
+            md = new ResumeResponse(
+                    id,
+                    "PROTECTED",
+                    "application/pdf",
+                    0,
+                    "PROTECTED",
+                    Instant.now()
+            );
+        }
         if (!file.exists()){
             throw new NoSuchElementException("File Missing");
         }
@@ -66,6 +83,12 @@ public class ResumeController {
                 .body(file);
 
 
+    }
+
+    @PostMapping("/{id}/share")
+    public ResponseEntity<ShareResponse> share(@PathVariable UUID id){
+        ShareResponse res = resumeService.generateOrRotateShare(id);
+        return ResponseEntity.ok(res);
     }
 
     @DeleteMapping("/{id}")
